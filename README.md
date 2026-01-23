@@ -1,10 +1,10 @@
-# Password Manager MVP
+# Password Manager
 
 This is a small, command-line password manager written in Python. It stores
 credentials in a local SQLite database and encrypts passwords using a key derived from a
 master password.
 
-> Warning: This is for learning and experimentation, not a production-ready password
+> Warning: This is not a production-ready password
 > manager. It has not been audited and is intentionally simple.
 
 ## Features
@@ -206,7 +206,7 @@ cipher.
    - Uses the same `Fernet` key to decrypt the ciphertext.
    - Decodes the plaintext bytes as UTF-8 and returns it as a `str`.
 
-### Why this design (for an MVP)
+### Why this design
 
 - **PBKDF2 with a salt and many iterations** slows down brute-force attempts against the
   master password.

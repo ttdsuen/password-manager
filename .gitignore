@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+*.pyo
+*.pyd
+
+# Build artifacts
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Virtual environments
+.venv/
+.uv/
+
+# Databases
+*.db
+*.sqlite3
+
+# Environments
+.env
+.env.*
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+
+# IDE/editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

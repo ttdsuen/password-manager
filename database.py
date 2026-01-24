@@ -13,15 +13,19 @@ def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
     By default, this uses ``vault.db`` in the current working directory.
     """
     path = db_path or DEFAULT_DB_PATH
-    return sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path))
+    # Enable WAL mode for better concurrent access
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
 
 
 def initialize_database(db_path: Optional[Path] = None) -> None:
     """Initialize the credentials database if it does not already exist.
 
-    This creates two tables:
+    This creates three tables:
     - ``metadata``: key/value store for configuration (e.g., salt, iterations, verifier)
     - ``credentials``: stored credentials with encrypted passwords
+    - ``credential_tags``: tags associated with credentials
     """
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
@@ -43,6 +47,16 @@ def initialize_database(db_path: Optional[Path] = None) -> None:
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 UNIQUE(service, username)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS credential_tags (
+                credential_id INTEGER NOT NULL,
+                tag TEXT NOT NULL,
+                UNIQUE(credential_id, tag),
+                FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE CASCADE
             )
             """
         )
@@ -138,6 +152,95 @@ def list_credentials(db_path: Optional[Path] = None) -> List[Tuple[str, str]]:
             FROM credentials
             ORDER BY service, username
             """
+        )
+        rows: Sequence[Tuple[str, str]] = cursor.fetchall()
+    return [(str(service), str(username)) for service, username in rows]
+
+
+def _get_credential_id(
+    service: str,
+    username: str,
+    db_path: Optional[Path] = None,
+) -> Optional[int]:
+    """Return the numeric credential ID for a (service, username) pair."""
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM credentials WHERE service = ? AND username = ?",
+            (service, username),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        return None
+    credential_id_raw = row[0]
+    assert isinstance(credential_id_raw, int)
+    return int(credential_id_raw)
+
+
+def replace_tags_for_credential(
+    service: str,
+    username: str,
+    tags: List[str],
+    db_path: Optional[Path] = None,
+) -> None:
+    """Replace all tags for the given credential with ``tags``.
+
+    If the credential does not exist, this is a no-op.
+    """
+    credential_id = _get_credential_id(service=service, username=username, db_path=db_path)
+    if credential_id is None:
+        return
+
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM credential_tags WHERE credential_id = ?", (credential_id,))
+        for tag in tags:
+            normalized = tag.strip()
+            if not normalized:
+                continue
+            cursor.execute(
+                "INSERT OR IGNORE INTO credential_tags (credential_id, tag) VALUES (?, ?)",
+                (credential_id, normalized),
+            )
+        conn.commit()
+
+
+def list_tags_for_credential(
+    service: str,
+    username: str,
+    db_path: Optional[Path] = None,
+) -> List[str]:
+    """Return all tags for the given credential, sorted alphabetically."""
+    credential_id = _get_credential_id(service=service, username=username, db_path=db_path)
+    if credential_id is None:
+        return []
+
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT tag FROM credential_tags WHERE credential_id = ? ORDER BY tag",
+            (credential_id,),
+        )
+        rows: Sequence[Tuple[str]] = cursor.fetchall()
+    return [str(tag) for (tag,) in rows]
+
+
+def list_credentials_with_tag(
+    tag: str,
+    db_path: Optional[Path] = None,
+) -> List[Tuple[str, str]]:
+    """Return all (service, username) pairs that have the given tag."""
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT c.service, c.username
+            FROM credentials AS c
+            JOIN credential_tags AS t ON c.id = t.credential_id
+            WHERE t.tag = ?
+            ORDER BY c.service, c.username
+            """,
+            (tag,),
         )
         rows: Sequence[Tuple[str, str]] = cursor.fetchall()
     return [(str(service), str(username)) for service, username in rows]

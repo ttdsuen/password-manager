@@ -17,6 +17,9 @@ from database import (
     get_metadata,
     initialize_database,
     list_credentials,
+    list_credentials_with_tag,
+    list_tags_for_credential,
+    replace_tags_for_credential,
     set_metadata,
     upsert_credential,
 )
@@ -189,6 +192,68 @@ def list_credential_identities(
     # This will raise if the password is invalid or vault not initialized.
     _ = get_encryption_key_from_password(master_password, db_path=db_path)
     return list_credentials(db_path=db_path)
+
+
+def set_credential_tags(
+    master_password: str,
+    service: str,
+    username: str,
+    tags: List[str],
+    db_path: Optional[Path] = None,
+) -> None:
+    """Replace all tags for a credential after verifying the master password."""
+    _ = get_encryption_key_from_password(master_password, db_path=db_path)
+    replace_tags_for_credential(service=service, username=username, tags=tags, db_path=db_path)
+
+
+def add_credential_tags(
+    master_password: str,
+    service: str,
+    username: str,
+    tags: List[str],
+    db_path: Optional[Path] = None,
+) -> None:
+    """Add tags to an existing credential, preserving existing tags.
+
+    Tags are normalized via ``strip()`` and de-duplicated.
+    """
+    _ = get_encryption_key_from_password(master_password, db_path=db_path)
+    existing = list_tags_for_credential(service=service, username=username, db_path=db_path)
+    merged = {t.strip() for t in existing if t.strip()}
+    for tag in tags:
+        normalized = tag.strip()
+        if normalized:
+            merged.add(normalized)
+    replace_tags_for_credential(
+        service=service,
+        username=username,
+        tags=sorted(merged),
+        db_path=db_path,
+    )
+
+
+def get_credential_tags(
+    master_password: str,
+    service: str,
+    username: str,
+    db_path: Optional[Path] = None,
+) -> List[str]:
+    """Return all tags for a credential after verifying the master password."""
+    _ = get_encryption_key_from_password(master_password, db_path=db_path)
+    return list_tags_for_credential(service=service, username=username, db_path=db_path)
+
+
+def list_credential_identities_with_tag(
+    master_password: str,
+    tag: str,
+    db_path: Optional[Path] = None,
+) -> List[Tuple[str, str]]:
+    """Return all (service, username) pairs that have the given tag.
+
+    The master password is verified but otherwise not used beyond that check.
+    """
+    _ = get_encryption_key_from_password(master_password, db_path=db_path)
+    return list_credentials_with_tag(tag=tag, db_path=db_path)
 
 
 def delete_credential_entry(

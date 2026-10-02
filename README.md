@@ -19,7 +19,9 @@ master password.
   - verify the master password
   - add/update a credential
   - get a credential
-  - list credentials
+  - list credentials (optionally filtered by tag)
+  - search credentials by service, username, or free-text query
+  - show or add tags on a credential
   - delete a credential
 
 ## Installation
@@ -91,6 +93,11 @@ uv run python main.py add example.com alice
 - Prompts for the password to store.
 - Encrypts the password and stores it in the `credentials` table.
 - If a credential for the same `(service, username)` already exists, it is updated.
+- Optionally attach tags at the same time with a repeatable `--tag TAG`:
+
+  ```bash
+  uv run python main.py add example.com alice --tag work --tag email
+  ```
 
 ### Get a credential
 
@@ -117,6 +124,50 @@ uv run python main.py list
 - Prompts for the master password.
 - Prints each stored credential as a `service username` pair.
 - Does **not** print any passwords.
+- Optionally filter by tag with `--tag TAG`:
+
+  ```bash
+  uv run python main.py list --tag work
+  ```
+
+### Search credentials
+
+```bash
+uv run python main.py search
+```
+
+- Prompts for the master password.
+- Prints matching `service username` pairs (no passwords).
+- Filters are case-insensitive substrings and can be combined:
+  - `--service TEXT`: match part of the service name
+  - `--username TEXT`: match part of the username
+  - `--query TEXT`: match part of either the service or the username
+  - `--tag TAG`: restrict to credentials carrying the tag, before the other filters
+
+Example:
+
+```bash
+uv run python main.py search --query git
+uv run python main.py search --service example --tag work
+```
+
+### Show or add tags
+
+```bash
+uv run python main.py tags SERVICE USERNAME
+uv run python main.py tag-add SERVICE USERNAME --tag TAG [--tag TAG ...]
+```
+
+Example:
+
+```bash
+uv run python main.py tags example.com alice
+uv run python main.py tag-add example.com alice --tag work --tag email
+```
+
+- `tags` prompts for the master password and prints the credential's tags, one per line.
+- `tag-add` prompts for the master password and adds the given tags, preserving any that
+  already exist. Tags are stripped of surrounding whitespace and de-duplicated.
 
 ### Delete a credential
 
@@ -150,6 +201,10 @@ Defined in `database.py`:
   - `username`: username for that service
   - `password_encrypted`: encrypted password bytes
   - `created_at`, `updated_at`: ISO 8601 timestamps (UTC)
+  - `(service, username)` is unique; re-adding the same pair updates it in place
+- `credential_tags` table: tags attached to credentials
+  - `credential_id`: foreign key into `credentials` (cascades on delete)
+  - `tag`: a single normalized tag string; `(credential_id, tag)` is unique
 
 ### Master password and key derivation
 

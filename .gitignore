@@ -17,6 +17,13 @@ wheels/
 # Databases
 *.db
 *.sqlite3
+# SQLite sidecar files (WAL mode / journals)
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
 
 # Environments
 .env

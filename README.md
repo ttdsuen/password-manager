@@ -57,6 +57,7 @@ uv run python main.py init
 ```
 
 - Prompts you to enter and confirm a master password.
+- Rejects an empty (or whitespace-only) password.
 - Creates (or updates) the SQLite database.
 - Stores password-derived key material in the `metadata` table.
 

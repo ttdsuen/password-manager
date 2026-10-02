@@ -126,6 +126,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         if pwd1 != pwd2:
             print("Passwords do not match.")
             return 1
+        if not pwd1.strip():
+            print("Master password must not be empty.")
+            return 1
 
         initialize_vault_with_password(pwd1, db_path=db_path)
         print(f"Vault initialized at {db_path}.")

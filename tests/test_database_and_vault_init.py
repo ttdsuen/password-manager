@@ -44,6 +44,28 @@ def test_initialize_vault_and_verify_password(tmp_path: Path) -> None:
     assert get_metadata("master_key_verifier", db_path=db_path) is not None
 
 
+def test_initialize_vault_rejects_empty_password(tmp_path: Path) -> None:
+    db_path = tmp_path / "vault.db"
+
+    try:
+        initialize_vault_with_password("", db_path=db_path)
+    except ValueError as exc:
+        assert "must not be empty" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError when initializing with an empty password")
+
+    # A whitespace-only password is also rejected.
+    try:
+        initialize_vault_with_password("   ", db_path=db_path)
+    except ValueError as exc:
+        assert "must not be empty" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError when initializing with a blank password")
+
+    # The failed attempts must not have initialized the vault.
+    assert not is_vault_initialized(db_path=db_path)
+
+
 def test_initialize_vault_twice_raises(tmp_path: Path) -> None:
     db_path = tmp_path / "vault.db"
 

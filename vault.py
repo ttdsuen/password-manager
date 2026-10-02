@@ -91,6 +91,10 @@ def initialize_vault_with_password(password: str, db_path: Optional[Path] = None
     from the password, and store the salt, iteration count, and a verifier hash in
     the ``metadata`` table.
     """
+    if not password.strip():
+        msg = "Master password must not be empty"
+        raise ValueError(msg)
+
     initialize_database(db_path=db_path)
     if is_vault_initialized(db_path=db_path):
         msg = "Vault is already initialized"
